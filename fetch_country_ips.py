@@ -6,7 +6,6 @@ Usage examples:
   python fetch_country_ips.py --country US --format cidr > generated/us.cidr
   python fetch_country_ips.py --country US --format cidr --debug-out generated/us.debug
 """
-
 from __future__ import annotations
 import argparse
 import os
@@ -18,7 +17,6 @@ import requests
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
 IPDENY_URL_IPV4 = "https://www.ipdeny.com/ipblocks/data/countries/{cc}.zone"
 IPDENY_URL_IPV6 = "https://www.ipdeny.com/ipv6/ipaddresses/ip6-{cc}.txt"
-# fallback source (may or may not exist) -- keep as emergency fallback
 IPINFO_URL = "https://ipinfo.io/countries/{cc}/cidr"
 
 DEFAULT_TIMEOUT = 10
@@ -116,13 +114,11 @@ def fetch_country_cidrs(cc: str, force_refresh: bool=False, ttl: int=CACHE_TTL, 
         debug_lines.append("Using cached results")
         return cached
 
-    # try ipdeny
     cidrs = fetch_from_ipdeny(cc, debug_lines)
     if not cidrs:
         debug_lines.append("ipdeny returned no cidrs; trying ipinfo fallback")
         cidrs = fetch_from_ipinfo(cc, debug_lines)
 
-    # last-ditch: try uppercase ipdeny (some hosts are case-sensitive)
     if not cidrs:
         debug_lines.append("Trying ipdeny with uppercase country code")
         cidrs = []
@@ -172,7 +168,6 @@ def main():
         debug_lines.append(f"ERROR: exception: {e}")
         cidrs = []
 
-    # write debug if requested
     if args.debug_out:
         try:
             with open(args.debug_out, "w", encoding="utf-8") as f:
@@ -181,16 +176,12 @@ def main():
             pass
 
     if not cidrs:
-        # print a human-readable commented error so generated file is never totally blank
         sys.stderr.write("ERROR: no CIDRs found for country {}\n".format(args.country))
-        # Print a comment to stdout so the generated file explicitly contains diagnostics
         print("# ERROR: no CIDRs found for country {}".format(args.country))
         for ln in debug_lines:
             print("# DBG: " + (ln if isinstance(ln, str) else repr(ln)))
-        # exit non-zero so CI can detect failure if desired
         sys.exit(2)
 
-    # success: print CIDRs
     if args.format == "cidr":
         print(format_cidr_output(cidrs))
     else:
