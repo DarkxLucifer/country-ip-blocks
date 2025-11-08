@@ -6,16 +6,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read    # we will use PAT for push/PR, so keep default read
+  contents: read
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          persist-credentials: false    # we'll use PAT only when pushing/PR'ing
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -31,30 +32,19 @@ jobs:
           COUNTRIES="US IN CN GB DE FR JP BR RU AU"
           for cc in $COUNTRIES; do
             echo "=== fetching $cc ==="
-            # debug file will capture detailed HTTP attempts
             python fetch_country_ips.py --country $cc --format cidr --no-cache --debug-out generated/${cc}.debug > generated/${cc}.cidr 2> generated/${cc}.stderr || true
-            # If script exited non-zero (empty), make sure generated file contains the debug summary (script already prints comment)
             if [ ! -s generated/${cc}.cidr ]; then
               echo "# ERROR: empty file produced for $cc" > generated/${cc}.cidr
               echo "# See generated/${cc}.debug and generated/${cc}.stderr" >> generated/${cc}.cidr
             fi
-            echo "Fetched $cc - size: $(wc -c < generated/${cc}.cidr) bytes"
           done
           ls -lah generated || true
-
-      - name: Show debug samples (for logs)
-        run: |
-          echo "=== sample debug for US ==="
-          head -n 200 generated/US.debug || true
-          echo "=== sample stderr for US ==="
-          head -n 200 generated/US.stderr || true
 
       - name: Commit and push to branch (create PR)
         env:
           PAT: ${{ secrets.ACTIONS_PAT }}
           REPO: ${{ github.repository }}
         run: |
-          # require PAT secret - create a branch and push files
           if [ -z "$PAT" ]; then
             echo "ERROR: ACTIONS_PAT secret is not set. Exiting."
             exit 1
@@ -65,7 +55,6 @@ jobs:
           git checkout -b "$BRANCH"
           git add generated/*.cidr generated/*.debug generated/*.stderr || true
           git commit -m "Automated update of country CIDR lists" || echo "No changes to commit"
-          # push using PAT
           git push "https://x-access-token:${PAT}@github.com/${REPO}.git" --set-upstream origin "$BRANCH"
 
       - name: Create Pull Request
@@ -78,4 +67,3 @@ jobs:
             This PR contains updated generated country CIDR lists and debug files.
             If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
           base: main
-          branch: ${{ steps.vars.outputs.branch || '' }}
