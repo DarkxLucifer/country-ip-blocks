@@ -1,3 +1,52 @@
+name: Update country lists
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # daily at 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    env:
+      # copy secret into env (may be empty)
+      ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
+
+    steps:
+      - name: Checkout (persist credentials)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch CIDRs for countries
+        run: |
+          mkdir -p generated
+          COUNTRIES="US IN CN GB DE FR JP BR RU AU"
+          for cc in $COUNTRIES; do
+            echo "=== fetching $cc ==="
+            python fetch_country_ips.py --country $cc --format cidr --no-cache --debug-out generated/${cc}.debug > generated/${cc}.cidr 2> generated/${cc}.stderr || true
+            if [ ! -s generated/${cc}.cidr ]; then
+              echo "# ERROR: empty file produced for $cc" > generated/${cc}.cidr
+              echo "# See generated/${cc}.debug and generated/${cc}.stderr" >> generated/${cc}.cidr
+            fi
+          done
+          ls -lah generated || true
+
       - name: Commit, push branch (safe + debug)
         env:
           REPO: ${{ github.repository }}
@@ -49,3 +98,15 @@
             echo "## Create a PR here:"
             echo "   https://github.com/${{ github.repository }}/pull/new/${BRANCH}"
           fi
+
+      - name: Create Pull Request using ACTIONS_PAT (if set)
+        if: ${{ env.ACTIONS_PAT != '' }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ env.ACTIONS_PAT }}
+          commit-message: "Automated update of country CIDR lists"
+          title: "Automated update: country CIDR lists"
+          body: |
+            This PR contains updated generated country CIDR lists and debug files.
+            If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
+          base: main
