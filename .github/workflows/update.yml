@@ -13,15 +13,15 @@ jobs:
   update:
     runs-on: ubuntu-latest
 
-    # copy secret into env so 'if' expressions can reference it safely
     env:
+      # copy secret into env (may be empty)
       ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
 
     steps:
       - name: Checkout (persist credentials)
         uses: actions/checkout@v4
         with:
-          persist-credentials: true    # allows git push with GITHUB_TOKEN
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -47,7 +47,7 @@ jobs:
           done
           ls -lah generated || true
 
-      - name: Commit & push to branch
+      - name: Commit & push branch
         env:
           REPO: ${{ github.repository }}
         run: |
@@ -58,26 +58,15 @@ jobs:
           git add generated/*.cidr generated/*.debug generated/*.stderr || true
           git commit -m "Automated update of country CIDR lists" || echo "No changes to commit"
           git push --set-upstream origin "$BRANCH"
+          echo "## Branch pushed: $BRANCH"
+          echo "## If ACTIONS_PAT is not set, create PR manually from:"
+          echo "   https://github.com/${{ github.repository }}/pull/new/${BRANCH}"
 
-      # If a PAT secret is present (non-empty), use it to create the PR
-      - name: Create Pull Request (use ACTIONS_PAT)
+      - name: Create Pull Request using ACTIONS_PAT (if set)
         if: ${{ env.ACTIONS_PAT != '' }}
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ env.ACTIONS_PAT }}
-          commit-message: "Automated update of country CIDR lists"
-          title: "Automated update: country CIDR lists"
-          body: |
-            This PR contains updated generated country CIDR lists and debug files.
-            If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
-          base: main
-
-      # Fallback: no PAT available — use GITHUB_TOKEN (works only for same-repo runs with write perms)
-      - name: Create Pull Request (use GITHUB_TOKEN fallback)
-        if: ${{ env.ACTIONS_PAT == '' }}
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Automated update of country CIDR lists"
           title: "Automated update: country CIDR lists"
           body: |
