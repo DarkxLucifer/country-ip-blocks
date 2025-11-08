@@ -5,8 +5,10 @@ on:
     - cron: '0 2 * * *'   # daily at 02:00 UTC
   workflow_dispatch:
 
+# Request push + PR write permissions
 permissions:
-  contents: write          # allow GITHUB_TOKEN to push
+  contents: write
+  pull-requests: write
 
 jobs:
   update:
@@ -52,9 +54,25 @@ jobs:
           git checkout -b "$BRANCH"
           git add generated/*.cidr generated/*.debug generated/*.stderr || true
           git commit -m "Automated update of country CIDR lists" || echo "No changes to commit"
+          # push using GITHUB_TOKEN (persist-credentials: true) - this will work for same-repo runs
           git push --set-upstream origin "$BRANCH"
 
-      - name: Create Pull Request
+      # If a PAT is set, use it to create the PR (works reliably for forks/org restrictions)
+      - name: Create Pull Request (use ACTIONS_PAT)
+        if: ${{ secrets.ACTIONS_PAT != '' }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.ACTIONS_PAT }}
+          commit-message: "Automated update of country CIDR lists"
+          title: "Automated update: country CIDR lists"
+          body: |
+            This PR contains updated generated country CIDR lists and debug files.
+            If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
+          base: main
+
+      # Fallback: if no PAT, use GITHUB_TOKEN (only works when run originates in same repo and permissions allow)
+      - name: Create Pull Request (use GITHUB_TOKEN fallback)
+        if: ${{ secrets.ACTIONS_PAT == '' }}
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -62,4 +80,5 @@ jobs:
           title: "Automated update: country CIDR lists"
           body: |
             This PR contains updated generated country CIDR lists and debug files.
+            If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
           base: main
