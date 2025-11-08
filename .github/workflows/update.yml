@@ -1,12 +1,46 @@
+name: Update country lists
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # daily at 02:00 UTC
+  workflow_dispatch:
+
 permissions:
-  contents: write   # allow pushing with GITHUB_TOKEN
+  contents: write          # allow GITHUB_TOKEN to push
 
-# ... earlier steps (checkout, setup-python, fetch) remain the same ...
+jobs:
+  update:
+    runs-on: ubuntu-latest
 
+    steps:
       - name: Checkout (persist credentials)
         uses: actions/checkout@v4
         with:
-          persist-credentials: true   # allow using GITHUB_TOKEN for git push
+          persist-credentials: true    # allows git push with GITHUB_TOKEN
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch CIDRs for countries
+        run: |
+          mkdir -p generated
+          COUNTRIES="US IN CN GB DE FR JP BR RU AU"
+          for cc in $COUNTRIES; do
+            echo "=== fetching $cc ==="
+            python fetch_country_ips.py --country $cc --format cidr --no-cache --debug-out generated/${cc}.debug > generated/${cc}.cidr 2> generated/${cc}.stderr || true
+            if [ ! -s generated/${cc}.cidr ]; then
+              echo "# ERROR: empty file produced for $cc" > generated/${cc}.cidr
+              echo "# See generated/${cc}.debug and generated/${cc}.stderr" >> generated/${cc}.cidr
+            fi
+          done
+          ls -lah generated || true
 
       - name: Commit & push to branch
         env:
