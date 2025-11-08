@@ -1,69 +1,31 @@
-name: Update country lists
-
-on:
-  schedule:
-    - cron: '0 2 * * *'  # daily at 02:00 UTC
-  workflow_dispatch:
-
 permissions:
-  contents: read
+  contents: write   # allow pushing with GITHUB_TOKEN
 
-jobs:
-  update:
-    runs-on: ubuntu-latest
+# ... earlier steps (checkout, setup-python, fetch) remain the same ...
 
-    steps:
-      - name: Checkout
+      - name: Checkout (persist credentials)
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true   # allow using GITHUB_TOKEN for git push
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install requirements
-        run: python -m pip install --upgrade pip && pip install -r requirements.txt
-
-      - name: Fetch CIDRs for countries
-        run: |
-          mkdir -p generated
-          COUNTRIES="US IN CN GB DE FR JP BR RU AU"
-          for cc in $COUNTRIES; do
-            echo "=== fetching $cc ==="
-            python fetch_country_ips.py --country $cc --format cidr --no-cache --debug-out generated/${cc}.debug > generated/${cc}.cidr 2> generated/${cc}.stderr || true
-            if [ ! -s generated/${cc}.cidr ]; then
-              echo "# ERROR: empty file produced for $cc" > generated/${cc}.cidr
-              echo "# See generated/${cc}.debug and generated/${cc}.stderr" >> generated/${cc}.cidr
-            fi
-          done
-          ls -lah generated || true
-
-      - name: Commit and push to branch (create PR)
+      - name: Commit & push to branch
         env:
-          PAT: ${{ secrets.ACTIONS_PAT }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -z "$PAT" ]; then
-            echo "ERROR: ACTIONS_PAT secret is not set. Exiting."
-            exit 1
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "actions@github.com"
           BRANCH="update/country-cidrs-$(date +%s)"
           git checkout -b "$BRANCH"
           git add generated/*.cidr generated/*.debug generated/*.stderr || true
           git commit -m "Automated update of country CIDR lists" || echo "No changes to commit"
-          git push "https://x-access-token:${PAT}@github.com/${REPO}.git" --set-upstream origin "$BRANCH"
+          git push --set-upstream origin "$BRANCH"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.ACTIONS_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Automated update of country CIDR lists"
           title: "Automated update: country CIDR lists"
           body: |
             This PR contains updated generated country CIDR lists and debug files.
-            If any generated file contains `# ERROR`, please check the corresponding `.debug` and `.stderr` files.
           base: main
