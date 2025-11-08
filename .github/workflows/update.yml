@@ -1,0 +1,30 @@
+name: Update country lists
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # daily at 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: pip install -r requirements.txt
+      - name: Fetch lists for common countries
+        run: |
+          mkdir -p generated
+          python fetch_country_ips.py --country US --format cidr > generated/us.cidr || true
+          python fetch_country_ips.py --country IN --format cidr > generated/in.cidr || true
+          python fetch_country_ips.py --country CN --format cidr > generated/cn.cidr || true
+          git config --local user.email "actions@github.com"
+          git config --local user.name "github-actions"
+          git add generated/*.cidr || true
+          git commit -m "Daily update of country CIDR lists" || echo "No changes"
+          git push
