@@ -1,0 +1,8 @@
+Cache stamp: 0.0, entries: 0
+Trying ipdeny URL: https://www.ipdeny.com/ipblocks/data/countries/ru.zone
+ -> status: 200
+Trying ipdeny URL: https://www.ipdeny.com/ipv6/ipaddresses/ip6-ru.txt
+ -> status: 404
+ -> ipdeny returned no usable content for https://www.ipdeny.com/ipv6/ipaddresses/ip6-ru.txt
+Total cidrs found: 11161
+Wrote cache: /home/runner/work/country-ip-blocks/country-ip-blocks/cache/ru.cache
