@@ -1,0 +1,8 @@
+Cache stamp: 0.0, entries: 0
+Trying ipdeny URL: https://www.ipdeny.com/ipblocks/data/countries/br.zone
+ -> status: 200
+Trying ipdeny URL: https://www.ipdeny.com/ipv6/ipaddresses/ip6-br.txt
+ -> status: 404
+ -> ipdeny returned no usable content for https://www.ipdeny.com/ipv6/ipaddresses/ip6-br.txt
+Total cidrs found: 12784
+Wrote cache: /home/runner/work/country-ip-blocks/country-ip-blocks/cache/br.cache
