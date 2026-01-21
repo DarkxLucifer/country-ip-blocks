@@ -1,0 +1,8 @@
+Cache stamp: 0.0, entries: 0
+Trying ipdeny URL: https://www.ipdeny.com/ipblocks/data/countries/in.zone
+ -> status: 200
+Trying ipdeny URL: https://www.ipdeny.com/ipv6/ipaddresses/ip6-in.txt
+ -> status: 404
+ -> ipdeny returned no usable content for https://www.ipdeny.com/ipv6/ipaddresses/ip6-in.txt
+Total cidrs found: 9079
+Wrote cache: /home/runner/work/country-ip-blocks/country-ip-blocks/cache/in.cache
