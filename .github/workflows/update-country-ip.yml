@@ -2,8 +2,8 @@ name: Update Country IP Blocks
 
 on:
   schedule:
-    - cron: "0 2 * * *"   # daily at 02:00 UTC
-  workflow_dispatch:
+    - cron: "30 18 * * *"  # Daily at 12:00 AM IST (18:30 UTC)
+  workflow_dispatch:     # Allows manual trigger for testing
 
 permissions:
   contents: write
@@ -34,5 +34,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add country/
-          git diff --cached --quiet || git commit -m "Daily update of country IP blocks"
+          git diff --cached --quiet || git commit -m "Daily update of country IP blocks $(date +'%Y-%m-%d')"
           git push
