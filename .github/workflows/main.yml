@@ -1,0 +1,51 @@
+name: Daily Update - Country IP Blocks
+
+on:
+  schedule:
+    # Every day at 00:00 UTC (midnight UTC)
+    # = 5:30 AM IST (your local time in Maharashtra)
+    - cron: '0 0 * * *'
+
+  # Also allow manual trigger (very useful for testing)
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Required to git commit & push
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for proper git commit history
+
+      - name: Fetch latest country IP blocks from ipdeny
+        run: |
+          # Create folder if not exists
+          mkdir -p ip-blocks/countries
+          
+          # Download the all-countries archive (most efficient)
+          wget -O all-zones.tar.gz https://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz
+          
+          # Extract
+          tar -xzf all-zones.tar.gz -C ip-blocks/countries/
+          
+          # Optional: also get aggregated per country if you prefer one file per country
+          # But the .zone files are already one per country
+
+          # Clean up
+          rm all-zones.tar.gz
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "GitHub Action"
+          git config user.email "action@github.com"
+          
+          git add ip-blocks/
+          
+          # Only commit if something actually changed
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update country IP blocks - $(date +'%Y-%m-%d')"
+          
+          git push
