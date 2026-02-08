@@ -18,7 +18,13 @@ countries = defaultdict(list)
 
 for url in URLS:
     print(f"Downloading {url}")
-    data = requests.get(url, timeout=60).text
+    try:
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+        data = response.text
+    except Exception as e:
+        print(f"Error downloading {url}: {e}")
+        continue
 
     for line in data.splitlines():
         if line.startswith("#"):
@@ -36,7 +42,10 @@ for url in URLS:
 
         try:
             if rtype == "ipv4":
-                prefix = 32 - (int(value).bit_length() - 1)
+                value_int = int(value)
+                if value_int == 0:
+                    continue
+                prefix = 32 - (value_int.bit_length() - 1)
                 net = ipaddress.ip_network(f"{start}/{prefix}", strict=False)
             elif rtype == "ipv6":
                 net = ipaddress.ip_network(f"{start}/{value}", strict=False)
@@ -44,13 +53,15 @@ for url in URLS:
                 continue
 
             countries[cc].append(str(net))
-        except Exception:
+        except Exception as e:
+            print(f"Error processing line '{line}': {e}")
             pass
 
 # Write files
-for cc, nets in countries.items():
-    with open(OUT_DIR / f"{cc}.txt", "w") as f:
-        for n in sorted(set(nets)):
+for cc, nets in sorted(countries.items()):
+    unique_nets = sorted(set(nets), key=ipaddress.ip_network)
+    with open(OUT_DIR / f"{cc.lower()}.txt", "w") as f:
+        for n in unique_nets:
             f.write(n + "\n")
 
 print("Done.")
