@@ -27,23 +27,29 @@ for url in URLS:
         continue
 
     for line in data.splitlines():
-        if line.startswith("#"):
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
 
         parts = line.split("|")
         if len(parts) < 7:
             continue
 
-        _, cc, rtype, start, value, _, status = parts
+        cc     = parts[1].strip()
+        rtype  = parts[2].strip()
+        start  = parts[3].strip()
+        value  = parts[4].strip()
+        status = parts[6].strip()
+
         if status not in ("allocated", "assigned"):
             continue
-        if cc == "" or cc == "ZZ":
+        if not cc or cc in ("*", "ZZ"):
             continue
 
         try:
             if rtype == "ipv4":
                 value_int = int(value)
-                if value_int == 0:
+                if value_int <= 0:
                     continue
                 prefix = 32 - (value_int.bit_length() - 1)
                 net = ipaddress.ip_network(f"{start}/{prefix}", strict=False)
@@ -54,14 +60,16 @@ for url in URLS:
 
             countries[cc].append(str(net))
         except Exception as e:
-            print(f"Error processing line '{line}': {e}")
-            pass
+            print(f"Skipping invalid entry from {url}: {line} → {e}")
+            continue
 
 # Write files
 for cc, nets in sorted(countries.items()):
     unique_nets = sorted(set(nets), key=ipaddress.ip_network)
-    with open(OUT_DIR / f"{cc.lower()}.txt", "w") as f:
+    cc_lower = cc.lower()
+    with open(OUT_DIR / f"{cc_lower}.txt", "w") as f:
         for n in unique_nets:
             f.write(n + "\n")
+    print(f"Wrote {len(unique_nets)} networks for {cc}")
 
 print("Done.")
